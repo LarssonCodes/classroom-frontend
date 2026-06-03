@@ -3,6 +3,8 @@ export type Subject = {
   name: string;
   code: string;
   description: string;
-  department: string;
+  department: {
+    name: string;
+  };
   createdAt: string;
 }

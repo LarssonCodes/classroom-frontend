@@ -40,12 +40,15 @@ export const mockSubjects: MockSubject[] = [
 export const dataProvider: DataProvider = {
   getList: async <TData extends BaseRecord>({
     resource,
+    pagination,
+    filters,
+    sorters,
   }: GetListParams): Promise<GetListResponse<TData>> => {
     if (resource !== 'subjects') {
       return { data: [] as TData[], total: 0 };
     }
 
-    const data = mockSubjects.map((subj) => ({
+    let data = mockSubjects.map((subj) => ({
       id: subj.id,
       code: subj.courseCode,
       name: subj.name,
@@ -56,9 +59,66 @@ export const dataProvider: DataProvider = {
       createdAt: new Date().toISOString(),
     }));
 
+    // Apply filters
+    if (filters) {
+      for (const filter of filters) {
+        if ('field' in filter && filter.value !== undefined && filter.value !== null && filter.value !== '') {
+          const { field, operator, value } = filter;
+          if (field === 'department' || field === 'department.name') {
+            data = data.filter((item) => item.department.name === value);
+          } else if (field === 'name') {
+            if (operator === 'contains') {
+              data = data.filter((item) =>
+                item.name.toLowerCase().includes(String(value).toLowerCase())
+              );
+            } else {
+              data = data.filter((item) => item.name === value);
+            }
+          }
+        }
+      }
+    }
+
+    // Apply sorters
+    if (sorters && sorters.length > 0) {
+      const sorter = sorters[0];
+      const { field, order } = sorter;
+      data.sort((a, b) => {
+        let valA = (a as any)[field];
+        let valB = (b as any)[field];
+
+        if (field === 'department' || field === 'department.name') {
+          valA = a.department.name;
+          valB = b.department.name;
+        }
+
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+
+        return order === 'asc' ? (valA > valB ? 1 : -1) : (valB > valA ? 1 : -1);
+      });
+    }
+
+    // Compute total length after filtering/sorting but before paging
+    const total = data.length;
+
+    // Apply pagination
+    const current = pagination?.currentPage ?? 1;
+    const pageSize = pagination?.pageSize ?? 10;
+
+    if (pagination?.mode !== 'client') {
+      const start = (current - 1) * pageSize;
+      const end = start + pageSize;
+      data = data.slice(start, end);
+    }
+
     return {
       data: data as unknown as TData[],
-      total: data.length,
+      total,
     };
   },
   getOne: async () => {
