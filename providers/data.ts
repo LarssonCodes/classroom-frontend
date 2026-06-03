@@ -4,6 +4,8 @@ import {
   GetListResponse,
   BaseRecord,
 } from '@refinedev/core';
+import { resolveTree } from 'shadcn';
+import { throws } from 'node:assert';
 
 export interface MockSubject {
   id: number;
@@ -61,17 +63,9 @@ export const dataProvider: DataProvider = {
       total: data.length,
     };
   },
-  getOne: async () => {
-    throw new Error('This function is not present in mock');
-  },
-  create: async () => {
-    throw new Error('This function is not present in mock');
-  },
-  update: async () => {
-    throw new Error('This function is not present in mock');
-  },
-  deleteOne: async () => {
-    throw new Error('This function is not present in mock');
-  },
+  getOne: async () => { throw new Error("This function is not present in mock") },
+  create: async () => { throw new Error("This function is not present in mock") },
+  update: async () => { throw new Error("This function is not present in mock") },
+  deleteOne: async () => { throw new Error("This function is not present in mock") },
   getApiUrl: () => '',
 };
