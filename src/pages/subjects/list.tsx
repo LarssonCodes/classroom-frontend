@@ -46,7 +46,10 @@ const SubjectListPage = () => {
       },
       {
         id: 'department',
-        accessorKey: 'department.name',
+        accessorFn: (row) =>
+          typeof row.department === 'object' && row.department !== null
+            ? (row.department as any).name || ''
+            : row.department || '',
         size: 150,
         header: () => <p className="column-title">Department</p>,
         cell: ({ getValue }) => (
@@ -121,7 +124,7 @@ const SubjectListPage = () => {
         value: val,
       });
     }
-    setFilters(activeFilters);
+    setFilters(activeFilters, 'replace');
   };
 
   const handleDepartmentChange = (val: string) => {
@@ -141,7 +144,7 @@ const SubjectListPage = () => {
         value: searchQuery,
       });
     }
-    setFilters(activeFilters);
+    setFilters(activeFilters, 'replace');
   };
 
   return (

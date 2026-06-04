@@ -52,34 +52,38 @@ const options: CreateDataProviderOptions = {
     },
 
     mapResponse: async (response) => {
+      if (!response.ok) {
+        throw {
+          message: response.statusText || 'Failed to fetch data from server',
+          statusCode: response.status,
+        };
+      }
       try {
-        if (!response.ok) {
-          console.error('mapResponse: response not OK', response.status, response.statusText);
-          return [];
-        }
-        const cloned = response.clone();
-        const payload: ListResponse = await cloned.json();
-        console.log('[Frontend Data Provider] mapResponse payload:', payload);
+        const payload: ListResponse = await response.json();
         return payload.data ?? [];
-      } catch (err) {
-        console.error('mapResponse error:', err);
-        return [];
+      } catch (err: any) {
+        throw {
+          message: err.message || 'JSON parsing error',
+          statusCode: 500,
+        };
       }
     },
 
     getTotalCount: async (response) => {
+      if (!response.ok) {
+        throw {
+          message: response.statusText || 'Failed to fetch data from server',
+          statusCode: response.status,
+        };
+      }
       try {
-        if (!response.ok) {
-          console.error('getTotalCount: response not OK', response.status, response.statusText);
-          return 0;
-        }
-        const cloned = response.clone();
-        const payload: ListResponse = await cloned.json();
-        console.log('[Frontend Data Provider] getTotalCount total:', payload.pagination?.total);
+        const payload: ListResponse = await response.json();
         return payload.pagination?.total ?? payload.data?.length ?? 0;
-      } catch (err) {
-        console.error('getTotalCount error:', err);
-        return 0;
+      } catch (err: any) {
+        throw {
+          message: err.message || 'JSON parsing error',
+          statusCode: 500,
+        };
       }
     },
   },
