@@ -1,137 +1,110 @@
-import {
-  DataProvider,
-  GetListParams,
-  GetListResponse,
-  BaseRecord,
-} from '@refinedev/core';
+import { createDataProvider, CreateDataProviderOptions } from '@refinedev/rest';
 
-export interface MockSubject {
-  id: number;
-  courseCode: string;
-  name: string;
-  dept: string;
-  briefDescription: string;
-}
+import { CreateResponse, GetOneResponse, ListResponse } from '@/types';
+import { BACKEND_BASE_URL } from '@/constants';
 
-export const mockSubjects: MockSubject[] = [
-  {
-    id: 1,
-    courseCode: 'CS101',
-    name: 'Introduction to Computer Science',
-    dept: 'CS',
-    briefDescription: 'An introduction to the fundamentals of computer science, algorithmic thinking, and programming using modern languages.',
-  },
-  {
-    id: 2,
-    courseCode: 'MATH201',
-    name: 'Linear Algebra',
-    dept: 'Math',
-    briefDescription: 'Covers systems of linear equations, matrices, determinants, vector spaces, linear transformations, eigenvalues, and eigenvectors.',
-  },
-  {
-    id: 3,
-    courseCode: 'ENG102',
-    name: 'English Composition',
-    dept: 'English',
-    briefDescription: 'Focuses on developing critical reading, writing, and research skills through analyzing complex texts and writing academic essays.',
-  },
-];
+const options: CreateDataProviderOptions = {
+  getList: {
+    getEndpoint: ({ resource }) => resource,
 
-export const dataProvider: DataProvider = {
-  getList: async <TData extends BaseRecord>({
-    resource,
-    pagination,
-    filters,
-    sorters,
-  }: GetListParams): Promise<GetListResponse<TData>> => {
-    if (resource !== 'subjects') {
-      return { data: [] as TData[], total: 0 };
-    }
+    buildQueryParams: async ({ resource, pagination, filters }) => {
+      const params: Record<string, string | number> = {};
 
-    let data = mockSubjects.map((subj) => ({
-      id: subj.id,
-      code: subj.courseCode,
-      name: subj.name,
-      department: {
-        name: subj.dept,
-      },
-      description: subj.briefDescription,
-      createdAt: new Date().toISOString(),
-    }));
+      if (pagination?.mode !== 'off') {
+        const page = pagination?.currentPage ?? 1;
+        const pageSize = pagination?.pageSize ?? 10;
 
-    // Apply filters
-    if (filters) {
-      for (const filter of filters) {
-        if ('field' in filter && filter.value !== undefined && filter.value !== null && filter.value !== '') {
-          const { field, operator, value } = filter;
-          if (field === 'department' || field === 'department.name') {
-            data = data.filter((item) => item.department.name === value);
-          } else if (field === 'name') {
-            if (operator === 'contains') {
-              data = data.filter((item) =>
-                item.name.toLowerCase().includes(String(value).toLowerCase())
-              );
-            } else {
-              data = data.filter((item) => item.name === value);
-            }
+        params.page = page;
+        params.limit = pageSize;
+      }
+
+      filters?.forEach((filter) => {
+        const field = 'field' in filter ? filter.field : '';
+        const value = String(filter.value);
+
+        if (field === 'role') {
+          params.role = value;
+        }
+
+        if (resource === 'departments') {
+          if (field === 'name' || field === 'code') params.search = value;
+        }
+
+        if (resource === 'users') {
+          if (field === 'search' || field === 'name' || field === 'email') {
+            params.search = value;
           }
         }
-      }
-    }
 
-    // Apply sorters
-    if (sorters && sorters.length > 0) {
-      const sorter = sorters[0];
-      const { field, order } = sorter;
-      data.sort((a, b) => {
-        let valA = (a as any)[field];
-        let valB = (b as any)[field];
-
-        if (field === 'department' || field === 'department.name') {
-          valA = a.department.name;
-          valB = b.department.name;
+        if (resource === 'subjects') {
+          if (field === 'department') params.department = value;
+          if (field === 'name' || field === 'code') params.search = value;
         }
 
-        if (valA === undefined || valA === null) return 1;
-        if (valB === undefined || valB === null) return -1;
-
-        if (typeof valA === 'string' && typeof valB === 'string') {
-          return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        if (resource === 'classes') {
+          if (field === 'name') params.search = value;
+          if (field === 'subject') params.subject = value;
+          if (field === 'teacher') params.teacher = value;
         }
-
-        return order === 'asc' ? (valA > valB ? 1 : -1) : (valB > valA ? 1 : -1);
       });
-    }
 
-    // Compute total length after filtering/sorting but before paging
-    const total = data.length;
+      return params;
+    },
 
-    // Apply pagination
-    const current = pagination?.currentPage ?? 1;
-    const pageSize = pagination?.pageSize ?? 10;
+    mapResponse: async (response) => {
+      try {
+        if (!response.ok) {
+          console.error('mapResponse: response not OK', response.status, response.statusText);
+          return [];
+        }
+        const cloned = response.clone();
+        const payload: ListResponse = await cloned.json();
+        console.log('[Frontend Data Provider] mapResponse payload:', payload);
+        return payload.data ?? [];
+      } catch (err) {
+        console.error('mapResponse error:', err);
+        return [];
+      }
+    },
 
-    if (pagination?.mode !== 'client') {
-      const start = (current - 1) * pageSize;
-      const end = start + pageSize;
-      data = data.slice(start, end);
-    }
+    getTotalCount: async (response) => {
+      try {
+        if (!response.ok) {
+          console.error('getTotalCount: response not OK', response.status, response.statusText);
+          return 0;
+        }
+        const cloned = response.clone();
+        const payload: ListResponse = await cloned.json();
+        console.log('[Frontend Data Provider] getTotalCount total:', payload.pagination?.total);
+        return payload.pagination?.total ?? payload.data?.length ?? 0;
+      } catch (err) {
+        console.error('getTotalCount error:', err);
+        return 0;
+      }
+    },
+  },
 
-    return {
-      data: data as unknown as TData[],
-      total,
-    };
+  create: {
+    getEndpoint: ({ resource }) => resource,
+
+    buildBodyParams: async ({ variables }) => variables,
+
+    mapResponse: async (response) => {
+      const json: CreateResponse = await response.json();
+      return json.data ?? {};
+    },
   },
-  getOne: async () => {
-    throw new Error('This function is not present in mock');
+
+  getOne: {
+    getEndpoint: ({ resource, id }) => `${resource}/${id}`,
+
+    mapResponse: async (response) => {
+      const json: GetOneResponse = await response.json();
+      return json.data ?? {};
+    },
   },
-  create: async () => {
-    throw new Error('This function is not present in mock');
-  },
-  update: async () => {
-    throw new Error('This function is not present in mock');
-  },
-  deleteOne: async () => {
-    throw new Error('This function is not present in mock');
-  },
-  getApiUrl: () => '',
 };
+
+const { dataProvider } = createDataProvider(BACKEND_BASE_URL, options);
+
+export { dataProvider };
