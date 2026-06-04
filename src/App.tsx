@@ -65,8 +65,7 @@ function App() {
               <RefineKbar />
               <UnsavedChangesNotifier />
               <DocumentTitleHandler />
-            </Refine>
-            <DevtoolsPanel />
+            </Refine>            <DevtoolsPanel />
           </DevtoolsProvider>
         </ThemeProvider>
       </RefineKbarProvider>
