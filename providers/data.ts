@@ -4,8 +4,6 @@ import {
   GetListResponse,
   BaseRecord,
 } from '@refinedev/core';
-import { resolveTree } from 'shadcn';
-import { throws } from 'node:assert';
 
 export interface MockSubject {
   id: number;
