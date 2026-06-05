@@ -59,7 +59,8 @@ const options: CreateDataProviderOptions = {
         };
       }
       try {
-        const payload: ListResponse = await response.json();
+        const clonedResponse = response.clone();
+        const payload: ListResponse = await clonedResponse.json();
         return payload.data ?? [];
       } catch (err: any) {
         throw {
@@ -77,7 +78,8 @@ const options: CreateDataProviderOptions = {
         };
       }
       try {
-        const payload: ListResponse = await response.json();
+        const clonedResponse = response.clone();
+        const payload: ListResponse = await clonedResponse.json();
         return payload.pagination?.total ?? payload.data?.length ?? 0;
       } catch (err: any) {
         throw {
