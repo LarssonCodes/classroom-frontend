@@ -89,20 +89,25 @@ function UploadWidget({
         const params = new URLSearchParams();
         params.append("token", deleteToken);
 
-        await fetch(
+        const response = await fetch(
             `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/delete_by_token`,
             {
               method: "POST",
               body: params,
             }
         );
+
+        if (!response.ok) {
+          throw new Error("Failed to delete image from Cloudinary");
+        }
       }
-    } catch (error) {
-      console.error("Failed to remove image from Cloudinary", error);
-    } finally {
+
       setPreview(null);
       setDeleteToken(null);
       onChangeRef.current?.(null);
+      setIsRemoving(false);
+    } catch (error) {
+      console.error("Failed to remove image from Cloudinary", error);
       setIsRemoving(false);
     }
   };
@@ -119,6 +124,8 @@ function UploadWidget({
                   variant="destructive"
                   onClick={removeFromCloudinary}
                   disabled={isRemoving || disabled}
+                  aria-label="Delete file"
+                  aria-disabled={isRemoving || disabled}
               >
                 <Trash className="size-4" />
               </Button>
@@ -127,9 +134,15 @@ function UploadWidget({
             <div
                 className="upload-dropzone"
                 role="button"
-                tabIndex={0}
-                onClick={openWidget}
+                tabIndex={disabled ? -1 : 0}
+                aria-disabled={disabled}
+                onClick={() => {
+                  if (!disabled) {
+                    openWidget();
+                  }
+                }}
                 onKeyDown={(event) => {
+                  if (disabled) return;
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     openWidget();

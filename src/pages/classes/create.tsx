@@ -24,27 +24,36 @@ import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
 
 import { Textarea } from "@/components/ui/textarea";
-import { useBack } from "@refinedev/core";
+import { useBack, useList } from "@refinedev/core";
 import { Loader2 } from "lucide-react";
 import { classSchema } from "@/lib/schema";
 import UploadWidget from "@/components/upload-widget";
 import { Subject, User, UploadWidgetValue } from "@/types";
 import z from "zod";
 
-const mockTeachers = [
-    { id: "teacher-1", name: "Dr. Sarah Connor" },
-    { id: "teacher-2", name: "Prof. Charles Xavier" },
-    { id: "teacher-3", name: "Dr. Bruce Banner" },
-];
-
-const mockSubjects = [
-    { id: 1, name: "Mathematics", code: "MATH" },
-    { id: 2, name: "Computer Science", code: "CS" },
-    { id: 3, name: "Physics", code: "PHYS" },
-];
-
 const ClassesCreate = () => {
     const back = useBack();
+
+    const { query: subjectsQuery } = useList<Subject>({
+        resource: "subjects",
+        pagination: { mode: "off" },
+    });
+    const subjects: Subject[] = subjectsQuery.data?.data ?? [];
+    const subjectsLoading = subjectsQuery.isLoading;
+
+    const { query: teachersQuery } = useList<User>({
+        resource: "users",
+        pagination: { mode: "off" },
+        filters: [
+            {
+                field: "role",
+                operator: "eq",
+                value: "teacher",
+            },
+        ],
+    });
+    const teachers: User[] = teachersQuery.data?.data ?? [];
+    const teachersLoading = teachersQuery.isLoading;
 
     const form = useForm({
         resolver: zodResolver(classSchema),
@@ -67,18 +76,31 @@ const ClassesCreate = () => {
     const bannerPublicId = form.watch("bannerCldPubId");
 
     const onSubmit = async (values: z.infer<typeof classSchema>) => {
+        const subjectExists = subjects.some((s) => s.id === values.subjectId);
+        const teacherExists = teachers.some((t) => t.id === values.teacherId);
+
+        if (!subjectExists || !teacherExists) {
+            if (!subjectExists) {
+                form.setError("subjectId", {
+                    type: "manual",
+                    message: "Selected subject is invalid or does not exist",
+                });
+            }
+            if (!teacherExists) {
+                form.setError("teacherId", {
+                    type: "manual",
+                    message: "Selected teacher is invalid or does not exist",
+                });
+            }
+            return;
+        }
+
         try {
             await onFinish(values);
         } catch (error) {
             console.error("Error creating class:", error);
         }
     };
-
-    const teachers = mockTeachers;
-    const teachersLoading = false;
-
-    const subjects = mockSubjects;
-    const subjectsLoading = false;
 
     return (
         <CreateView className="class-view">
@@ -316,7 +338,7 @@ const ClassesCreate = () => {
 
                                 <Separator />
 
-                                <Button type="submit" size="lg" className="w-full">
+                                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
                                     {isSubmitting ? (
                                         <div className="flex gap-1">
                                             <span>Creating Class...</span>
